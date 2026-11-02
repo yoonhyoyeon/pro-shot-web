@@ -21,7 +21,7 @@ export interface GoalArea {
 
 export type AnalysisStatus = 'VALID' | 'BALL_NOT_DETECTED'
 
-/** 백엔드 분석 결과 응답 (GET /analyses/{id}/result) */
+/** 화면에서 쓰는 분석 결과. HTTP 응답은 api/serverMapping.ts에서 이 형태로 바꾼다 */
 export interface AnalysisResult {
   status: AnalysisStatus
   speed_kmh: number

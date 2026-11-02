@@ -14,6 +14,12 @@ npm test         # 단위 테스트 (파일 검증, 좌표 변환, 오류 코드
 
 백엔드 연결: `.env.example`을 `.env.local`로 복사한 뒤 `VITE_API_MODE=http`, `VITE_API_BASE_URL`을 설정합니다. 기본값은 Mock입니다.
 
+- 배포 서버: `https://soccer-shot-analyzer.onrender.com` (스웨거 `/docs`). 무료 플랜이라 첫 요청이 50초 이상 걸릴 수 있고, 아직 영상 분석은 503 `ANALYSIS_UNAVAILABLE`을 돌려줍니다.
+- 서버 재시작 없이 Mock으로 보기: `http://localhost:5173/?api=mock`
+- 업로드 없이 결과 화면 확인: `http://localhost:5173/?analysis=sample-valid` (예시 작업 id: `sample-valid`, `sample-portrait`, `sample-no-ball`, `sample-low-confidence`, `sample-track-short`)
+- 업로드 없이 보정 결과 확인: `http://localhost:5173/?calibration-id=sample-calibration-ok` (실패 예시: `sample-calibration-failed`)
+- 서버 응답 → 화면 형태 변환은 `src/api/serverMapping.ts`에 모여 있습니다.
+
 화면 하단 PROTOTYPE 바로 업로드 / 영상 선택 / 분석 중 / 결과 / 분석 실패 / 네트워크 오류 화면을 바로 전환할 수 있습니다.
 `?scenario=ball-not-detected`, `goal-not-detected`, `network-error`를 붙이면 첫 분석이 해당 오류로 끝납니다(재시도는 성공).
 

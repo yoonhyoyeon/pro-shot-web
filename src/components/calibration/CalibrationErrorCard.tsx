@@ -7,7 +7,7 @@ import { StatusBadge } from '../common/StatusBadge'
 
 /** 원인별 안내. 영상 문제는 다시 촬영, 통신 문제는 다시 시도 */
 const COPY: Record<CalibrationErrorCode, { title: string; solution: string; connection?: boolean }> = {
-  CHECKERBOARD_NOT_FOUND: {
+  CHESSBOARD_NOT_FOUND: {
     title: '체스보드를 찾지 못했어요',
     solution: '체스보드 전체가 화면 안에 들어오고, 빛 반사나 흔들림 없이 선명하게 보이도록 다시 촬영해주세요.',
   },

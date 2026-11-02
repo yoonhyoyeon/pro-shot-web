@@ -86,17 +86,42 @@ const FAILURE_COPY: Record<AnalysisFailureCode, { title: string; description: st
   },
 }
 
-/** 서버 업로드 검증이 거절한 이유별 해결 방법 (백엔드 6주차 오류 코드) */
+/** 서버 업로드 검증이 거절한 이유별 해결 방법 (docs/백엔드_연동_가이드.md 5장) */
 const REJECT_SOLUTION: Record<string, string> = {
+  MISSING_FILE: '영상 파일이 전달되지 않았습니다. 영상을 다시 선택해서 올려주세요.',
+  FILE_TOO_LARGE: '파일이 200MB보다 큽니다. 슈팅 장면만 잘라내거나 1080p로 다시 저장해서 올려주세요.',
+  UNSUPPORTED_MEDIA_TYPE: '지원하지 않는 형식입니다. MP4 또는 MOV 영상으로 올려주세요.',
   VIDEO_TOO_SHORT: '영상이 1초보다 짧습니다. 공이 날아가는 장면이 모두 담기도록 다시 촬영해주세요.',
   VIDEO_TOO_LONG: '영상이 30초보다 깁니다. 슈팅 직전부터 공이 골대에 도달할 때까지만 잘라서 올려주세요.',
   RESOLUTION_TOO_LOW: '해상도가 너무 낮습니다. 짧은 변 480px 이상, 가능하면 1080p로 촬영해주세요.',
   UNREADABLE_VIDEO: '서버에서 영상 정보를 읽지 못했습니다. 파일이 손상되지 않았는지 확인하거나 다시 저장해서 올려주세요.',
 }
 
+/**
+ * '공 인식 실패' 화면으로 함께 오는 백엔드 세부 코드별 문구.
+ * 공을 찾긴 했지만 추적·계산 단계에서 실패한 경우라 '인식하지 못했다'와 다르게 안내한다
+ */
+const TRACKING_FAILURE_COPY: Record<string, { title: string; description: string; solution: string }> = {
+  TRACK_TOO_SHORT: {
+    title: '공을 끝까지 추적하지 못했습니다',
+    description: '공은 찾았지만 날아가는 구간을 충분히 따라가지 못해 속도를 계산할 수 없었습니다.',
+    solution: '공이 골대에 닿을 때까지 화면 밖으로 나가지 않도록, 골대 전체가 보이게 촬영해주세요.',
+  },
+  LOW_CONFIDENCE: {
+    title: '분석 결과를 신뢰하기 어렵습니다',
+    description: '공 위치를 확실하게 찾은 장면이 적어 추정한 속도와 궤적을 믿기 어렵습니다.',
+    solution: '밝은 곳에서 흔들림 없이 촬영하고, 공이 배경과 잘 구분되도록 해주세요.',
+  },
+  FIT_FAILED: {
+    title: '공의 궤적을 계산하지 못했습니다',
+    description: '추적한 공의 움직임으로 이동 경로를 계산하는 데 실패했습니다.',
+    solution: '촬영 가이드처럼 공의 대각선 뒤 약 30°에서, 카메라를 고정한 채 다시 촬영해주세요.',
+  },
+}
+
 /** AI 분석이 영상 문제로 실패한 경우 */
 export function AnalysisFailedPage({ code, rawCode, onRetry, onBack }: ErrorPageProps<AnalysisFailureCode>) {
-  const copy = FAILURE_COPY[code]
+  const copy = (rawCode && TRACKING_FAILURE_COPY[rawCode]) || FAILURE_COPY[code]
   const solution = (rawCode && REJECT_SOLUTION[rawCode]) || copy.solution
   return (
     <ErrorLayout
@@ -143,6 +168,11 @@ const CONNECTION_COPY: Record<ConnectionErrorCode, { badge: string; title: strin
   },
 }
 
+/** 서버가 보낸 코드에 따라 설명을 더 구체적으로 */
+const CONNECTION_DESCRIPTION_BY_RAW: Record<string, string> = {
+  ANALYSIS_UNAVAILABLE: '지금 연결된 서버에서는 영상 분석 기능을 사용할 수 없습니다. 분석 기능이 준비되면 다시 시도해주세요.',
+}
+
 const NETWORK_TIPS = [
   '인터넷 연결 상태를 확인해주세요',
   '잠시 후 다시 시도해도 문제가 지속되면 페이지를 새로고침해주세요',
@@ -158,7 +188,7 @@ export function NetworkErrorPage({ code, rawCode, onRetry, onBack }: ErrorPagePr
       iconBg="bg-white/5"
       badge={<StatusBadge>{copy.badge}</StatusBadge>}
       title={copy.title}
-      description={copy.description}
+      description={(rawCode && CONNECTION_DESCRIPTION_BY_RAW[rawCode]) || copy.description}
       code={rawCode ?? code}
       primaryLabel="다시 시도"
       secondaryLabel="처음으로"

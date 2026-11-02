@@ -4,7 +4,7 @@ import type { CalibrationFailureCode, CalibrationResult } from '../types/calibra
 export type MockCalibrationScenario = 'success' | 'checkerboard-not-found' | 'not-enough-frames'
 
 export const MOCK_CALIBRATION_FAILURE: Partial<Record<MockCalibrationScenario, CalibrationFailureCode>> = {
-  'checkerboard-not-found': 'CHECKERBOARD_NOT_FOUND',
+  'checkerboard-not-found': 'CHESSBOARD_NOT_FOUND',
   'not-enough-frames': 'NOT_ENOUGH_FRAMES',
 }
 

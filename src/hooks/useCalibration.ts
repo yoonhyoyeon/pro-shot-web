@@ -42,41 +42,66 @@ export function useCalibration() {
     abortRef.current = null
   }, [])
 
+  /** 보정 작업이 끝날 때까지 상태를 조회한다 */
+  const poll = useCallback(async (calibrationId: string, signal: AbortSignal) => {
+    setState({ phase: 'processing', progress: 0 })
+    const deadline = performance.now() + PROCESS_TIMEOUT_MS
+    while (!signal.aborted) {
+      const status = await calibrationApi.getCalibration(calibrationId, signal)
+      if (signal.aborted) return
+      if (status.status === 'done') return setState({ phase: 'done', result: status.result })
+      if (status.status === 'failed') {
+        const code = normalizeCalibrationCode(status.code)
+        return setState({ phase: 'error', code, rawCode: status.code !== code ? status.code : undefined })
+      }
+      setState({ phase: 'processing', progress: status.progress })
+      if (performance.now() > deadline) return setState({ phase: 'error', code: 'TIMEOUT' })
+      await sleep(POLL_MS, signal)
+    }
+  }, [])
+
+  /** 업로드·조회 중 오류를 화면 상태로 */
+  const handleError = useCallback((e: unknown, signal: AbortSignal) => {
+    if (isAbortError(e) || signal.aborted) return
+    if (e instanceof ApiError) setState({ phase: 'error', code: e.code as CalibrationErrorCode, rawCode: e.rawCode })
+    else setState({ phase: 'error', code: 'NETWORK_ERROR' })
+  }, [])
+
+  const begin = useCallback(() => {
+    stop()
+    const controller = new AbortController()
+    abortRef.current = controller
+    return controller.signal
+  }, [stop])
+
   const start = useCallback(
     async (video: SelectedVideo) => {
-      stop()
-      const controller = new AbortController()
-      const { signal } = controller
-      abortRef.current = controller
+      const signal = begin()
       setState({ phase: 'uploading', progress: 0 })
-
       try {
         const { calibrationId } = await calibrationApi.createCalibration(video, {
           signal,
           onProgress: (progress) => setState({ phase: 'uploading', progress }),
         })
-        setState({ phase: 'processing', progress: 0 })
-
-        const deadline = performance.now() + PROCESS_TIMEOUT_MS
-        while (!signal.aborted) {
-          const status = await calibrationApi.getCalibration(calibrationId, signal)
-          if (signal.aborted) return
-          if (status.status === 'done') return setState({ phase: 'done', result: status.result })
-          if (status.status === 'failed') {
-            const code = normalizeCalibrationCode(status.code)
-            return setState({ phase: 'error', code, rawCode: status.code !== code ? status.code : undefined })
-          }
-          setState({ phase: 'processing', progress: status.progress })
-          if (performance.now() > deadline) return setState({ phase: 'error', code: 'TIMEOUT' })
-          await sleep(POLL_MS, signal)
-        }
+        await poll(calibrationId, signal)
       } catch (e) {
-        if (isAbortError(e) || signal.aborted) return
-        if (e instanceof ApiError) setState({ phase: 'error', code: e.code as CalibrationErrorCode, rawCode: e.rawCode })
-        else setState({ phase: 'error', code: 'NETWORK_ERROR' })
+        handleError(e, signal)
       }
     },
-    [stop],
+    [begin, poll, handleError],
+  )
+
+  /** 업로드 없이 이미 있는 보정 작업의 상태를 조회한다 */
+  const watch = useCallback(
+    async (calibrationId: string) => {
+      const signal = begin()
+      try {
+        await poll(calibrationId, signal)
+      } catch (e) {
+        handleError(e, signal)
+      }
+    },
+    [begin, poll, handleError],
   )
 
   /** 진행 중인 업로드·보정을 중단하고 처음 상태로 */
@@ -87,5 +112,5 @@ export function useCalibration() {
 
   useEffect(() => stop, [stop])
 
-  return { state, start, reset }
+  return { state, start, watch, reset }
 }

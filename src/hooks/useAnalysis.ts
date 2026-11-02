@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, analysisApi, isAbortError } from '../api'
-import type { AnalysisErrorCode, AnalysisResult, AnalysisStepId, SelectedVideo } from '../types/analysis'
+import type { AnalysisErrorCode, AnalysisEvent, AnalysisResult, AnalysisStepId, SelectedVideo } from '../types/analysis'
 
 export type AnalysisState =
   | { phase: 'idle' }
@@ -26,6 +26,15 @@ export function useAnalysis() {
     unsubscribeRef.current = null
   }, [])
 
+  const subscribe = useCallback((analysisId: string) => {
+    setState({ phase: 'running', progress: 0, step: 'validate' })
+    unsubscribeRef.current = analysisApi.subscribe(analysisId, (event: AnalysisEvent) => {
+      if (event.type === 'progress') setState({ phase: 'running', progress: event.progress, step: event.step })
+      else if (event.type === 'complete') setState({ phase: 'done', result: event.result })
+      else setState({ phase: 'error', code: event.code, rawCode: event.rawCode })
+    })
+  }, [])
+
   const start = useCallback(
     async (video: SelectedVideo, { calibrationId }: { calibrationId?: string } = {}) => {
       stop()
@@ -40,20 +49,23 @@ export function useAnalysis() {
           onProgress: (progress) => setState({ phase: 'uploading', progress }),
         })
         if (controller.signal.aborted) return
-
-        setState({ phase: 'running', progress: 0, step: 'validate' })
-        unsubscribeRef.current = analysisApi.subscribe(analysisId, (event) => {
-          if (event.type === 'progress') setState({ phase: 'running', progress: event.progress, step: event.step })
-          else if (event.type === 'complete') setState({ phase: 'done', result: event.result })
-          else setState({ phase: 'error', code: event.code, rawCode: event.rawCode })
-        })
+        subscribe(analysisId)
       } catch (e) {
         if (isAbortError(e)) return
         if (e instanceof ApiError) setState({ phase: 'error', code: e.code as AnalysisErrorCode, rawCode: e.rawCode })
         else setState({ phase: 'error', code: 'NETWORK_ERROR' })
       }
     },
-    [stop],
+    [stop, subscribe],
+  )
+
+  /** 업로드 없이 이미 있는 분석 작업에 붙는다. 끝난 작업이면 결과가 바로 온다 */
+  const watch = useCallback(
+    (analysisId: string) => {
+      stop()
+      subscribe(analysisId)
+    },
+    [stop, subscribe],
   )
 
   /** 진행 중인 업로드·분석을 중단하고 상태를 바꾼다 */
@@ -67,5 +79,5 @@ export function useAnalysis() {
 
   useEffect(() => stop, [stop])
 
-  return { state, start, set }
+  return { state, start, watch, set }
 }

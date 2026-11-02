@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { API_MODE } from '../api'
 import { AnalysisProgress } from '../components/analysis/AnalysisProgress'
 import { CalibrationErrorCard } from '../components/calibration/CalibrationErrorCard'
 import { CalibrationMetrics, CalibrationResultCard } from '../components/calibration/CalibrationResultCard'
@@ -34,7 +35,13 @@ interface CalibrationPageProps {
 
 export function CalibrationPage({ saved, onSaved, onClear, onGoUpload }: CalibrationPageProps) {
   const [video, setVideo] = useState<SelectedVideoData | null>(null)
-  const { state, start, reset } = useCalibration()
+  const { state, start, watch, reset } = useCalibration()
+
+  // 개발용: 실제 서버 연결 시 ?calibration-id=sample-calibration-ok 처럼 보정 id를 주면 업로드 없이 그 결과를 받는다
+  useEffect(() => {
+    const calibrationId = new URLSearchParams(window.location.search).get('calibration-id')
+    if (API_MODE === 'http' && calibrationId) void watch(calibrationId)
+  }, [watch])
 
   // 선택한 영상이 바뀌거나 화면을 떠나면 미리보기 URL 해제
   useEffect(() => {

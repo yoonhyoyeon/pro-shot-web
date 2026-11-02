@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Header } from './components/layout/Header'
+import { API_MODE } from './api'
 import { isFailureCode } from './api/errorCodes'
 import { ProtoNav } from './components/layout/ProtoNav'
 import { useAnalysis } from './hooks/useAnalysis'
@@ -43,9 +44,19 @@ function toSelectedVideo(file: File, metadata: VideoMetadata): SelectedVideo {
 
 export default function App() {
   const [video, setVideo] = useState<SelectedVideo | null>(null)
-  const [view, setView] = useState<View>('main')
+  // ?calibration-id= 로 들어오면 보정 화면부터 (개발용, CalibrationPage 참고)
+  const [view, setView] = useState<View>(() =>
+    new URLSearchParams(window.location.search).has('calibration-id') ? 'calibration' : 'main',
+  )
   const [calibration, setCalibration] = useState<CalibrationResult | null>(loadCalibration)
-  const { state, start, set } = useAnalysis()
+  const { state, start, watch, set } = useAnalysis()
+
+  // 개발용: 실제 서버 연결 시 ?analysis=sample-valid 처럼 분석 id를 주면 업로드 없이 그 작업의 진행·결과를 받는다
+  // (백엔드 예시 작업 id는 docs/백엔드_연동_가이드.md 1-1장)
+  useEffect(() => {
+    const analysisId = new URLSearchParams(window.location.search).get('analysis')
+    if (API_MODE === 'http' && analysisId) watch(analysisId)
+  }, [watch])
 
   const updateCalibration = useCallback((next: CalibrationResult | null) => {
     setCalibration(next)

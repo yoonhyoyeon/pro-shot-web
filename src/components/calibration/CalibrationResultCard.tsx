@@ -15,7 +15,10 @@ export function CalibrationMetrics({ result, compact = false }: { result: Calibr
   const quality = calibrationQuality(result.rms_error)
   const items = [
     { label: '보정 해상도', value: `${result.image_size.width}×${result.image_size.height}` },
-    { label: '사용한 프레임', value: `${result.frames_used} / ${result.frames_total}` },
+    {
+      label: '사용한 프레임',
+      value: result.frames_total ? `${result.frames_used} / ${result.frames_total}` : `${result.frames_used}장`,
+    },
     {
       label: '재투영 오차',
       value: `${result.rms_error.toFixed(2)}px`,

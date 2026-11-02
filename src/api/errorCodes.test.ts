@@ -24,14 +24,21 @@ describe('normalizeFailureCode: 서버 실패 코드 → 화면 코드', () => {
 
 describe('normalizeCalibrationCode: 보정 실패 코드', () => {
   it('보정 실패 코드는 그대로, 업로드 거절은 영상 문제, 모르는 코드는 서버 오류', () => {
+    expect(normalizeCalibrationCode('CHESSBOARD_NOT_FOUND')).toBe('CHESSBOARD_NOT_FOUND')
     expect(normalizeCalibrationCode('NOT_ENOUGH_FRAMES')).toBe('NOT_ENOUGH_FRAMES')
     expect(normalizeCalibrationCode('VIDEO_TOO_LONG')).toBe('INVALID_VIDEO')
     expect(normalizeCalibrationCode('BALL_NOT_DETECTED')).toBe('SERVER_ERROR')
+  })
+  it('영상 열기 실패는 영상 문제, 계산·저장 실패는 서버 오류', () => {
+    expect(normalizeCalibrationCode('VIDEO_OPEN_FAILED')).toBe('INVALID_VIDEO')
+    expect(normalizeCalibrationCode('CALIBRATION_FAILED')).toBe('SERVER_ERROR')
+    expect(normalizeCalibrationCode('SAVE_FAILED')).toBe('SERVER_ERROR')
   })
 })
 
 describe('codeFromBody: 오류 응답 본문에서 코드 읽기', () => {
   it.each([
+    [{ error_code: 'UNSUPPORTED_MEDIA_TYPE', message: '지원하지 않는 형식의 파일입니다' }, 'UNSUPPORTED_MEDIA_TYPE'],
     [{ code: 'VIDEO_TOO_SHORT' }, 'VIDEO_TOO_SHORT'],
     [{ detail: 'RESOLUTION_TOO_LOW' }, 'RESOLUTION_TOO_LOW'],
     [{ detail: { code: 'UNREADABLE_VIDEO', message: '...' } }, 'UNREADABLE_VIDEO'],
@@ -43,10 +50,17 @@ describe('codeFromBody: 오류 응답 본문에서 코드 읽기', () => {
 })
 
 describe('uploadError: 업로드 거절 응답', () => {
-  it('본문 코드가 상태 코드보다 우선하고 원래 코드를 남긴다', () => {
-    const e = uploadError(413, { detail: 'VIDEO_TOO_SHORT' })
+  it('영상 문제 코드는 영상 오류 화면으로 보내고 원래 코드를 남긴다', () => {
+    const e = uploadError(413, { error_code: 'VIDEO_TOO_SHORT', message: '영상이 너무 짧습니다' })
     expect(e.code).toBe('INVALID_VIDEO')
     expect(e.rawCode).toBe('VIDEO_TOO_SHORT')
+    expect(uploadError(400, { error_code: 'MISSING_FILE' }).code).toBe('INVALID_VIDEO')
+    expect(uploadError(415, { error_code: 'UNSUPPORTED_MEDIA_TYPE' }).code).toBe('INVALID_VIDEO')
+  })
+  it('분석 기능이 없는 서버(503)는 공 인식 실패가 아니라 서버 오류', () => {
+    const e = uploadError(503, { error_code: 'ANALYSIS_UNAVAILABLE', message: '분석 기능을 사용할 수 없는 환경입니다' })
+    expect(e.code).toBe('SERVER_ERROR')
+    expect(e.rawCode).toBe('ANALYSIS_UNAVAILABLE')
   })
   it('본문에 코드가 없으면 상태 코드로 판단', () => {
     expect(uploadError(504, null).code).toBe('TIMEOUT')
