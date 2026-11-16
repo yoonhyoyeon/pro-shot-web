@@ -1,5 +1,6 @@
 import arrowIcon from '../../assets/icons/arrow-right.svg'
 import type { CalibrationResult } from '../../types/calibration'
+import { QUALITY_LABEL, calibrationQuality } from '../../utils/calibration'
 import { Card } from '../common/Card'
 import { StatusBadge } from '../common/StatusBadge'
 
@@ -49,7 +50,7 @@ export function ShootingGuide({ onOpenGuide, calibration, onOpenCalibration }: S
           <>
             <p className="text-fg-muted text-sm leading-5">카메라 보정이 적용되어 있어요</p>
             <p className="text-fg-subtle pt-1 font-mono text-xs leading-4">
-              {calibration.image_size.width}×{calibration.image_size.height} · 오차 {calibration.rms_error.toFixed(2)}px
+              {calibration.image_size.width}×{calibration.image_size.height} · 품질 {QUALITY_LABEL[calibrationQuality(calibration.rms_error)]}
             </p>
           </>
         ) : (

@@ -76,7 +76,7 @@ const FAILURE_COPY: Record<AnalysisFailureCode, { title: string; description: st
   },
   GOAL_NOT_DETECTED: {
     title: '골대를 인식하지 못했습니다',
-    description: '골대를 찾지 못해 실제 거리와 속도를 환산할 수 없었습니다.',
+    description: '골대를 찾지 못해 골인 여부를 판단할 수 없었습니다.',
     solution: '촬영 가이드처럼 공의 대각선 뒤 약 30°에서, 골대 전체가 화면 안에 들어오도록 다시 촬영해주세요.',
   },
   INVALID_VIDEO: {

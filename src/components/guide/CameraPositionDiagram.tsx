@@ -94,8 +94,8 @@ export function CameraPositionDiagram() {
       </svg>
 
       <figcaption className="text-fg-subtle text-xs leading-[19.5px]">
-        공과 골대 중심을 잇는 선을 기준으로, 공 뒤쪽에서 좌우 약 30° 벗어난 곳에 두세요. 예를 들어 공보다 5m 뒤, 3m 옆이면 약 {ANGLE}°입니다. AI는
-        화면 아래쪽을 중력 방향으로 계산하므로 카메라를 아래로 많이 기울이지 마세요.
+        공과 골대 중심을 잇는 선을 기준으로, 공 뒤쪽에서 좌우 약 30° 벗어난 곳에 두세요. 예를 들어 공보다 5m 뒤, 3m 옆이면 약 {ANGLE}°입니다. 카메라를
+        아래로 많이 기울이면 공의 궤적과 속도가 부정확해질 수 있어요.
       </figcaption>
     </figure>
   )

@@ -4,7 +4,7 @@ import { Button } from '../components/common/Button'
 import { Card } from '../components/common/Card'
 import { StatusBadge } from '../components/common/StatusBadge'
 import { ConfidenceMeter } from '../components/result/ConfidenceMeter'
-import { FeedbackCard, ScoreCard, SpeedCard } from '../components/result/MetricCards'
+import { FeedbackCard, GoalResult, ScoreCard, SpeedCard } from '../components/result/MetricCards'
 import { TrajectoryViewer } from '../components/result/TrajectoryViewer'
 import type { AnalysisResult } from '../types/analysis'
 
@@ -28,14 +28,7 @@ export function ResultPage({ result, onRestart, onGuideClick }: ResultPageProps)
       </section>
 
       <div className="flex flex-wrap items-center justify-between gap-3 pt-7 pb-3">
-        <div className="flex items-center gap-2">
-          <StatusBadge>TRAJECTORY ANALYSIS</StatusBadge>
-          {result.goal ? (
-            <StatusBadge tone="accent">GOAL · 골인</StatusBadge>
-          ) : (
-            <StatusBadge tone="danger">NO GOAL · 노골</StatusBadge>
-          )}
-        </div>
+        <GoalResult goal={result.goal} />
         <ConfidenceMeter confidence={result.confidence} />
       </div>
 

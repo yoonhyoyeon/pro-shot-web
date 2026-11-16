@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Header } from './components/layout/Header'
-import { API_MODE } from './api'
+import { API_MODE, USABILITY_TEST } from './api'
 import { isFailureCode } from './api/errorCodes'
 import { ProtoNav } from './components/layout/ProtoNav'
 import { useAnalysis } from './hooks/useAnalysis'
@@ -193,7 +193,7 @@ export default function App() {
           ))}
       </main>
 
-      <ProtoNav current={screen} onNavigate={navigate} />
+      {!USABILITY_TEST && <ProtoNav current={screen} onNavigate={navigate} />}
     </div>
   )
 }

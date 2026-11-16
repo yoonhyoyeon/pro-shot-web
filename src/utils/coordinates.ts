@@ -79,6 +79,15 @@ export function interpolateAt(points: TrajectoryPoint[], frame: number): Traject
 }
 
 /**
+ * 화면에 그릴 추적 점. 재생 중에는 현재 프레임까지만 그려 공을 따라가게 하고,
+ * 멈춘 상태에서는 전체를 유지해 점을 고른 뒤에도 다른 점을 고를 수 있게 한다.
+ */
+export function pointsToDraw(points: TrajectoryPoint[], currentFrame: number | null, playing: boolean): TrajectoryPoint[] {
+  if (!playing || currentFrame === null) return points
+  return points.filter((p) => p.frame <= currentFrame)
+}
+
+/**
  * 화면에서 최소 minCssPx 크기로 보이도록 하는 SVG(영상 좌표계) 반지름.
  * 영상이 작게 표시되는 모바일에서도 터치 영역이 충분하도록 한다.
  * @param scale 영상 1px이 화면에서 차지하는 크기 (fitTransform의 scale)
@@ -88,9 +97,13 @@ export function minRadiusInSource(baseRadius: number, scale: number, minCssPx = 
   return Math.max(baseRadius, minCssPx / scale)
 }
 
-/** 재생 시간(초) → 프레임 번호 */
+/**
+ * 재생 시간(초) → 프레임 번호.
+ * 프레임 시작 시각으로 이동해도 video.currentTime의 반올림 때문에 21.99999처럼 앞 프레임으로 계산될 수 있어
+ * 아주 작은 값을 더한 뒤 내림한다 (궤적 점을 눌렀을 때 그 점의 프레임과 표시가 어긋나지 않도록).
+ */
 export function timeToFrame(seconds: number, fps: number) {
-  return Math.floor(seconds * fps)
+  return Math.floor(seconds * fps + 0.001)
 }
 
 /** 프레임 번호 → 재생 시간(초) */

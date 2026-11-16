@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { boxToSource, fitTransform, frameToTime, interpolateAt, minRadiusInSource, scalePoint, sourceToBox, timeToFrame } from './coordinates'
+import { boxToSource, fitTransform, frameToTime, interpolateAt, minRadiusInSource, pointsToDraw, scalePoint, sourceToBox, timeToFrame } from './coordinates'
 
 const FHD = { width: 1920, height: 1080 }
 const HD = { width: 1280, height: 720 }
@@ -56,6 +56,29 @@ describe('프레임 ↔ 재생 시간', () => {
   })
   it('프레임 사이 시간은 이전 프레임으로 내림', () => {
     expect(timeToFrame(0.51, 30)).toBe(15)
+  })
+  it.each([30, 29.97, 60])('%sfps에서 프레임 → 시간 → 프레임이 같은 번호로 돌아온다', (fps) => {
+    for (let frame = 0; frame < 300; frame++) {
+      const seconds = frameToTime(frame, fps)
+      expect(timeToFrame(seconds, fps)).toBe(frame)
+      // 브라우저는 video.currentTime을 소수 6자리로 돌려주기도 한다 (0.733333초 → 21.99999프레임)
+      expect(timeToFrame(Number(seconds.toFixed(6)), fps)).toBe(frame)
+    }
+  })
+})
+
+describe('pointsToDraw: 화면에 그릴 추적 점', () => {
+  const points = [0, 5, 11, 22, 33].map((frame) => ({ frame, x: frame, y: frame }))
+
+  it('재생 중에는 현재 프레임까지만 그린다', () => {
+    expect(pointsToDraw(points, 11, true).map((p) => p.frame)).toEqual([0, 5, 11])
+  })
+  it('멈춘 상태에서 앞쪽 점으로 이동해도 전체 점을 유지한다', () => {
+    expect(pointsToDraw(points, 0, false)).toHaveLength(5)
+  })
+  it('아직 재생 정보가 없으면 전체 점을 그린다', () => {
+    expect(pointsToDraw(points, null, true)).toHaveLength(5)
+    expect(pointsToDraw(points, null, false)).toHaveLength(5)
   })
 })
 

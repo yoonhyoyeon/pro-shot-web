@@ -26,7 +26,7 @@ export function Header({ onLogoClick, onGuideClick, onCalibrationClick }: Header
           <button
             type="button"
             onClick={onGuideClick}
-            className="text-fg-muted hover:text-fg rounded-lg px-3 py-1.5 text-sm leading-5 transition hover:bg-white/5"
+            className="text-fg-muted hover:text-fg rounded-lg px-3 py-1.5 text-sm leading-5 transition hover:bg-white/5 pointer-coarse:min-h-11"
           >
             촬영 가이드
           </button>

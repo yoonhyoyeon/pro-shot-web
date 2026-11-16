@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { API_MODE } from '../api'
 import { AnalysisProgress } from '../components/analysis/AnalysisProgress'
 import { CalibrationErrorCard } from '../components/calibration/CalibrationErrorCard'
-import { CalibrationMetrics, CalibrationResultCard } from '../components/calibration/CalibrationResultCard'
+import { CalibrationResultCard, CalibrationSummary } from '../components/calibration/CalibrationResultCard'
 import { CalibrationSteps } from '../components/calibration/CalibrationSteps'
 import { DistortionComparison } from '../components/calibration/DistortionComparison'
 import { Button } from '../components/common/Button'
@@ -142,7 +142,7 @@ export function CalibrationPage({ saved, onSaved, onClear, onGoUpload }: Calibra
                   </StatusBadge>
                   <p className="text-fg-muted pt-2 text-sm leading-5">다음 분석에 이 보정이 적용됩니다.</p>
                 </div>
-                <CalibrationMetrics result={saved} compact />
+                <CalibrationSummary result={saved} />
                 <Button variant="secondary" onClick={onClear} disabled={running} className="mt-auto self-start px-4 py-2 text-xs">
                   보정 해제
                 </Button>

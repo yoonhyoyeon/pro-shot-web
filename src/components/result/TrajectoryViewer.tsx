@@ -6,6 +6,7 @@ import {
   interpolateAt,
   fitTransform,
   minRadiusInSource,
+  pointsToDraw,
   scaleArea,
   scalePoints,
   timeToFrame,
@@ -27,42 +28,6 @@ interface TrajectoryViewerProps {
 }
 
 const toPoints = (points: TrajectoryPoint[]) => points.map((p) => `${p.x},${p.y}`).join(' ')
-
-/** 선택한 점 위에 띄우는 좌표 라벨 (궤적 선과 겹쳐도 읽히도록 배경 포함) */
-function PointLabel({ x, y, unit, text }: { x: number; y: number; unit: number; text: string }) {
-  const fontSize = 15 * unit
-  // 고정폭 글꼴이라 글자 수로 폭을 계산
-  const width = text.length * fontSize * 0.6 + 16 * unit
-  const height = fontSize + 12 * unit
-  return (
-    <g className="pointer-events-none">
-      <rect
-        x={x - width / 2}
-        y={y - height / 2}
-        width={width}
-        height={height}
-        rx={6 * unit}
-        fill="#08110F"
-        fillOpacity={0.85}
-        stroke="#3ECFEF"
-        strokeOpacity={0.5}
-        strokeWidth={1.5 * unit}
-      />
-      <text
-        x={x}
-        y={y}
-        fontSize={fontSize}
-        fontWeight={500}
-        fill="#F5F7F6"
-        textAnchor="middle"
-        dominantBaseline="central"
-        className="font-mono"
-      >
-        {text}
-      </text>
-    </g>
-  )
-}
 
 /**
  * 영상(또는 대표 프레임) 위에 공 궤적을 그린다.
@@ -87,6 +52,7 @@ export function TrajectoryViewer({
   const videoRef = useRef<HTMLVideoElement>(null)
   const [videoSize, setVideoSize] = useState<Size | null>(null)
   const [currentFrame, setCurrentFrame] = useState<number | null>(null)
+  const [playing, setPlaying] = useState(false)
   const [selectedFrame, setSelectedFrame] = useState<number | null>(null)
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null)
   const boxRef = useRef<HTMLDivElement>(null)
@@ -101,12 +67,12 @@ export function TrajectoryViewer({
   const predictedPoints = useMemo(() => scalePoints(predicted, frameSize, source), [predicted, frameSize, source])
   const area = useMemo(() => goalArea && scaleArea(goalArea, frameSize, source), [goalArea, frameSize, source])
 
-  // 재생 중에는 현재 프레임까지의 궤적만 표시
-  const visible = currentFrame === null ? points : points.filter((p) => p.frame <= currentFrame)
-  const head = currentFrame === null ? undefined : visible[visible.length - 1]
+  // 재생 중에는 현재 프레임까지의 궤적만, 멈추면 전체 궤적을 표시
+  const visible = pointsToDraw(points, currentFrame, playing)
+  const head = playing ? visible[visible.length - 1] : undefined
   // 추적 점 사이에 있는 현재 프레임의 공 위치 (선이 공을 따라가도록)
   const ball = currentFrame === null ? null : interpolateAt(points, currentFrame)
-  const linePoints = ball && ball.frame !== head?.frame ? [...visible, ball] : visible
+  const linePoints = playing && ball && ball.frame !== head?.frame ? [...visible, ball] : visible
 
   useEffect(() => {
     const video = videoRef.current
@@ -117,14 +83,19 @@ export function TrajectoryViewer({
       if (!video.paused && !video.ended) raf = requestAnimationFrame(tick)
     }
     const onPlay = () => {
+      setPlaying(true)
+      setSelectedFrame(null)
       cancelAnimationFrame(raf)
       raf = requestAnimationFrame(tick)
     }
+    const onPause = () => setPlaying(false)
     video.addEventListener('play', onPlay)
+    video.addEventListener('pause', onPause)
     video.addEventListener('seeked', tick)
     return () => {
       cancelAnimationFrame(raf)
       video.removeEventListener('play', onPlay)
+      video.removeEventListener('pause', onPause)
       video.removeEventListener('seeked', tick)
     }
   }, [fps, videoUrl])
@@ -144,6 +115,12 @@ export function TrajectoryViewer({
   const screenScale = boxSize ? fitTransform(source, boxSize, fit).scale : 1
   // 화면에서 지름 44px 이상이 되도록 (WCAG 2.5.5 권장 터치 영역)
   const hitRadius = minRadiusInSource(22 * unit, screenScale)
+  // 영상이 작게 표시되는 모바일에서도 점과 표시가 보이도록 화면 기준 최소 크기를 둔다
+  const dotRadius = minRadiusInSource(6.2 * unit, screenScale, 5)
+  const edgeDotRadius = minRadiusInSource(10.7 * unit, screenScale, 7)
+  const haloRadius = minRadiusInSource(20 * unit, screenScale, 14)
+  const ringRadius = minRadiusInSource(14 * unit, screenScale, 9)
+  const ringStroke = minRadiusInSource(2.5 * unit, screenScale, 2)
   const first = visible[0]
   const last = visible[visible.length - 1]
   const selected = points.find((p) => p.frame === selectedFrame)
@@ -268,7 +245,7 @@ export function TrajectoryViewer({
                 key={p.frame}
                 role="button"
                 tabIndex={0}
-                aria-label={`프레임 ${p.frame}, 좌표 (${p.x}, ${p.y})`}
+                aria-label={`${frameToTime(p.frame, fps).toFixed(2)}초 지점의 공 위치`}
                 aria-pressed={isSelected}
                 onClick={() => selectPoint(p)}
                 onKeyDown={(e) => {
@@ -281,16 +258,16 @@ export function TrajectoryViewer({
                 style={{ animationDelay: currentFrame === null ? `${150 * i}ms` : '0ms' }}
               >
                 {(isSelected || p === head) && (
-                  <circle cx={p.x} cy={p.y} r={20 * unit} fill="#3ECFEF" opacity={isSelected ? 0.25 : 0.15} />
+                  <circle cx={p.x} cy={p.y} r={haloRadius} fill="#3ECFEF" opacity={isSelected ? 0.25 : 0.15} />
                 )}
                 <circle
                   cx={p.x}
                   cy={p.y}
-                  r={(isEdge ? 10.7 : 6.2) * unit}
+                  r={isEdge ? edgeDotRadius : dotRadius}
                   fill="#3ECFEF"
                   fillOpacity={opacity}
                   stroke={isSelected ? '#F5F7F6' : 'none'}
-                  strokeWidth={2.5 * unit}
+                  strokeWidth={ringStroke}
                 />
                 {/* 클릭하기 쉽도록 넓힌 투명 히트 영역 */}
                 <circle cx={p.x} cy={p.y} r={hitRadius} fill="transparent" />
@@ -303,21 +280,12 @@ export function TrajectoryViewer({
             <circle
               cx={ball.x}
               cy={ball.y}
-              r={14 * unit}
+              r={ringRadius}
               fill="none"
               stroke="#F5F7F6"
               strokeOpacity={0.9}
-              strokeWidth={2.5 * unit}
+              strokeWidth={ringStroke}
               className="pointer-events-none"
-            />
-          )}
-
-          {selected && (
-            <PointLabel
-              x={selected.x}
-              y={selected.y - 34 * unit}
-              unit={unit}
-              text={`(${selected.x}, ${selected.y}) · f${selected.frame}`}
             />
           )}
         </svg>
@@ -359,8 +327,16 @@ export function TrajectoryViewer({
             <span className="text-fg-muted text-xs leading-4">예측 궤적</span>
           </span>
         )}
-        <span className="text-fg-subtle ml-auto hidden text-xs leading-4 sm:inline">
-          {isVideo ? '재생하면 공의 위치가 영상과 함께 그려져요 · 점을 누르면 해당 프레임으로 이동' : '점을 누르면 좌표를 볼 수 있어요'}
+        {/* 선택 정보는 영상 크기와 상관없이 읽히도록 영상 밖에 표시. 문구가 바뀌어도 아래 내용이 밀리지 않게 모바일은 두 줄 높이를 확보 */}
+        <span
+          aria-live="polite"
+          className={`min-h-8 w-full text-xs leading-4 break-keep sm:ml-auto sm:min-h-0 sm:w-auto ${selected ? 'text-fg' : 'text-fg-subtle'}`}
+        >
+          {selected
+            ? `${frameToTime(selected.frame, fps).toFixed(2)}초 지점의 공 위치예요 · 다시 누르면 선택이 해제돼요`
+            : isVideo
+              ? '궤적의 점을 누르면 그 순간으로 이동해요 · 재생하면 영상과 함께 그려져요'
+              : '궤적의 점을 누르면 그 순간의 시간을 볼 수 있어요'}
         </span>
       </figcaption>
     </figure>

@@ -18,7 +18,7 @@ const EXAMPLES: Example[] = [
   {
     ok: false,
     title: '골대가 잘림',
-    description: '골대 크기로 실제 거리를 환산하므로 골대가 모두 보여야 해요.',
+    description: '골인 여부를 판단하려면 골대 전체가 화면에 보여야 해요.',
     imageClass: 'scale-[1.9] origin-[15%_95%]',
   },
   {

@@ -7,8 +7,9 @@
   --color-card: #121c20;
   --color-fg: #f5f7f6;
   --color-fg-muted: #a5b0ac;
-  --color-fg-subtle: #687570;
-  --color-fg-faint: #45514d;
+  /* 보조 문구: 어느 배경(bg·surface·card)에서도 대비 4.5:1 이상 (WCAG AA) */
+  --color-fg-subtle: #828f8a;
+  --color-fg-faint: #7d8a85;
   --color-accent: #39e079;
   --color-track: #3ecfef;
   --color-warn: #c98a2e;

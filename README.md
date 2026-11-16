@@ -16,6 +16,7 @@ npm test         # 단위 테스트 (파일 검증, 좌표 변환, 오류 코드
 
 - 배포 서버: `https://soccer-shot-analyzer.onrender.com` (스웨거 `/docs`). 무료 플랜이라 첫 요청이 50초 이상 걸릴 수 있고, 아직 영상 분석은 503 `ANALYSIS_UNAVAILABLE`을 돌려줍니다.
 - 서버 재시작 없이 Mock으로 보기: `http://localhost:5173/?api=mock`
+- 사용성 테스트용 주소: `?test=1` (Mock으로 동작하고 하단 PROTOTYPE 바를 숨김)
 - 업로드 없이 결과 화면 확인: `http://localhost:5173/?analysis=sample-valid` (예시 작업 id: `sample-valid`, `sample-portrait`, `sample-no-ball`, `sample-low-confidence`, `sample-track-short`)
 - 업로드 없이 보정 결과 확인: `http://localhost:5173/?calibration-id=sample-calibration-ok` (실패 예시: `sample-calibration-failed`)
 - 서버 응답 → 화면 형태 변환은 `src/api/serverMapping.ts`에 모여 있습니다.
@@ -46,11 +47,11 @@ src/
 
 - SVG `viewBox`를 영상 원본 해상도와 같게 두고 `preserveAspectRatio="xMidYMid slice"`를 사용해
   배경 이미지의 `object-fit: cover`와 똑같이 잘리도록 맞춥니다. 화면 크기가 바뀌어도 영상과 궤적의 상대 위치가 유지됩니다.
-- 실제 추적 좌표는 `<polyline>`으로 연결하고 각 좌표는 `<circle>`로 표시합니다. 점을 클릭(또는 Enter)하면 좌표와 프레임 번호가 표시됩니다.
+- 실제 추적 좌표는 `<polyline>`으로 연결하고 각 좌표는 `<circle>`로 표시합니다. 점을 클릭(또는 Enter)하면 그 순간의 시간이 영상 아래에 표시되고 영상이 해당 프레임으로 이동합니다.
 - 예측 궤적은 점선, 골대 영역은 사각형으로 표시합니다.
 
 - 실제 영상이 있으면 분석 해상도 → 영상 해상도로 좌표를 환산하고(`scalePoints`), 재생 시간과 프레임을 맞춰
-  현재 프레임까지의 궤적만 그립니다. 추적 점 사이는 보간해 공 위치를 따라갑니다.
+  재생 중에는 현재 프레임까지의 궤적만 그리고, 멈추면 전체 궤적을 보여줍니다. 추적 점 사이는 보간해 공 위치를 따라갑니다.
 
 ## 백엔드 API (프론트엔드가 기대하는 형태)
 
