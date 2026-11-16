@@ -65,7 +65,7 @@ export const mockResult: AnalysisResult = {
   status: 'VALID',
   speed_kmh: 93.7,
   score: 78,
-  goal: true,
+  goal: 'GOAL',
   confidence: 0.82,
   frames_tracked: 34,
   feedback: '강한 임팩트와 안정적인 궤적이 확인됩니다. 아마추어 수준을 뛰어넘는 파워 슈팅이에요 🔥',
@@ -77,7 +77,31 @@ export const mockResult: AnalysisResult = {
   goal_area: { x: 606.5, y: 264.1, width: 160.6, height: 113.8 },
 }
 
-export type MockScenario = 'success' | 'ball-not-detected' | 'goal-not-detected' | 'network-error'
+/** 골인을 확정하지 못해 점수가 미평가인 결과 (실제 서버에서 가장 흔한 경우) */
+export const mockUndeterminedResult: AnalysisResult = {
+  ...mockResult,
+  score: null,
+  goal: 'UNDETERMINED',
+  feedback: '골라인 통과 여부를 판단할 근거가 부족합니다.',
+}
+
+/** 공은 추적했지만 속도를 보류한 부분 결과 (11/16 실제 페널티킥 영상과 같은 경우) */
+export const mockPartialResult: AnalysisResult = {
+  ...mockUndeterminedResult,
+  status: 'PARTIAL',
+  speed_kmh: null,
+  predicted_trajectory: [],
+  hold_reason: 'SPEED_UNCERTAINTY_HIGH',
+}
+
+/** 성공 시나리오 중 결과만 다른 것: partial(속도 보류), undetermined(골인 판정 보류) */
+export type MockScenario =
+  | 'success'
+  | 'partial'
+  | 'undetermined'
+  | 'ball-not-detected'
+  | 'goal-not-detected'
+  | 'network-error'
 
 interface MockAnalysisOptions {
   scenario?: MockScenario

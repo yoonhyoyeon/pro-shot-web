@@ -7,6 +7,7 @@ import { Button } from '../components/common/Button'
 import { Card } from '../components/common/Card'
 import { StatusBadge } from '../components/common/StatusBadge'
 import type { AnalysisFailureCode, ConnectionErrorCode } from '../types/analysis'
+import { FAILURE_DETAIL_COPY } from '../utils/failureCopy'
 
 interface ErrorLayoutProps {
   icon: string
@@ -98,30 +99,12 @@ const REJECT_SOLUTION: Record<string, string> = {
 }
 
 /**
- * '공 인식 실패' 화면으로 함께 오는 백엔드 세부 코드별 문구.
- * 공을 찾긴 했지만 추적·계산 단계에서 실패한 경우라 '인식하지 못했다'와 다르게 안내한다
+ * AI 분석이 영상 문제로 실패한 경우.
+ * 공을 찾긴 했지만 추적·계산 단계에서 실패한 경우는 '인식하지 못했다'와 다르게,
+ * 서버 세부 코드(failure_detail, 없으면 failure_reason)에 맞춰 안내한다
  */
-const TRACKING_FAILURE_COPY: Record<string, { title: string; description: string; solution: string }> = {
-  TRACK_TOO_SHORT: {
-    title: '공을 끝까지 추적하지 못했습니다',
-    description: '공은 찾았지만 날아가는 구간을 충분히 따라가지 못해 속도를 계산할 수 없었습니다.',
-    solution: '공이 골대에 닿을 때까지 화면 밖으로 나가지 않도록, 골대 전체가 보이게 촬영해주세요.',
-  },
-  LOW_CONFIDENCE: {
-    title: '분석 결과를 신뢰하기 어렵습니다',
-    description: '공 위치를 확실하게 찾은 장면이 적어 추정한 속도와 궤적을 믿기 어렵습니다.',
-    solution: '밝은 곳에서 흔들림 없이 촬영하고, 공이 배경과 잘 구분되도록 해주세요.',
-  },
-  FIT_FAILED: {
-    title: '공의 궤적을 계산하지 못했습니다',
-    description: '추적한 공의 움직임으로 이동 경로를 계산하는 데 실패했습니다.',
-    solution: '촬영 가이드처럼 공의 대각선 뒤 약 30°에서, 카메라를 고정한 채 다시 촬영해주세요.',
-  },
-}
-
-/** AI 분석이 영상 문제로 실패한 경우 */
 export function AnalysisFailedPage({ code, rawCode, onRetry, onBack }: ErrorPageProps<AnalysisFailureCode>) {
-  const copy = (rawCode && TRACKING_FAILURE_COPY[rawCode]) || FAILURE_COPY[code]
+  const copy = (rawCode && FAILURE_DETAIL_COPY[rawCode]) || FAILURE_COPY[code]
   const solution = (rawCode && REJECT_SOLUTION[rawCode]) || copy.solution
   return (
     <ErrorLayout

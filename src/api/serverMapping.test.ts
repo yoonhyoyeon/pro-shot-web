@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { PENALTY_SPEED_HOLD } from '../mocks/realAnalysis'
 import {
+  MIN_PARTIAL_POINTS,
+  interpretResult,
   parseServerEvent,
   stepFromProgress,
   toAnalysisResult,
@@ -8,12 +11,14 @@ import {
   type ServerCalibrationStatus,
 } from './serverMapping'
 
-// 배포 서버 예시 작업(sample-valid, sample-calibration-ok 등)의 실제 응답 (궤적은 앞부분만)
+// 배포 서버 예시 작업(sample-valid, sample-calibration-ok 등)의 실제 응답 (궤적은 앞부분만, 11/16 Modal 기준)
 const VALID: ServerAnalysisResult = {
   status: 'VALID',
   score: 78,
+  score_status: 'EVALUATED',
   speed_kmh: 93.7,
-  goal: false,
+  goal: true,
+  goal_status: 'GOAL',
   trajectory: [
     { x: 940.0, y: 905.0, frame: 0 },
     { x: 962.8, y: 862.2, frame: 1 },
@@ -63,7 +68,7 @@ describe('toAnalysisResult: 백엔드 결과 → 화면 결과', () => {
       status: 'VALID',
       score: 78,
       speed_kmh: 93.7,
-      goal: false,
+      goal: 'GOAL',
       confidence: 0.82,
       fps: 29.97,
       frame_size: { width: 1920, height: 1080 },
@@ -79,6 +84,65 @@ describe('toAnalysisResult: 백엔드 결과 → 화면 결과', () => {
     expect(result.frame_url).toBe(media.imageUrl)
     expect(result.predicted_trajectory).toEqual([])
     expect(result.goal_area).toBeUndefined()
+  })
+  it('골대 밖(sample-portrait)은 노골 · 0점으로', () => {
+    const outside = toAnalysisResult({ ...VALID, score: 0, goal: false, goal_status: 'OUTSIDE' }, media)
+    expect(outside).toMatchObject({ goal: 'OUTSIDE', score: 0 })
+  })
+  it('골인 판정 불가는 노골이 아니라 판정 보류, 미채점 0점은 null(미평가)로', () => {
+    const undetermined = toAnalysisResult(
+      { ...VALID, score: 0, score_status: 'NOT_EVALUATED', goal: false, goal_status: 'UNDETERMINED' },
+      media,
+    )
+    expect(undetermined).toMatchObject({ goal: 'UNDETERMINED', score: null })
+  })
+  it('상태 필드가 없는 이전 서버: goal false는 판정 보류로, 점수는 채점한 것으로 본다', () => {
+    const { goal_status: _g, score_status: _s, ...old } = VALID
+    expect(toAnalysisResult({ ...old, goal: false }, media)).toMatchObject({ goal: 'UNDETERMINED', score: 78 })
+    expect(toAnalysisResult(old, media).goal).toBe('GOAL')
+  })
+  it('골망에 닿은 뒤의 점은 빼고, 추적 프레임 수도 그린 점 개수로', () => {
+    const real = toAnalysisResult(PENALTY_SPEED_HOLD, media)
+    expect(real.trajectory).toHaveLength(14)
+    expect(real.frames_tracked).toBe(14)
+  })
+})
+
+describe('interpretResult: 완료된 분석 → 결과 화면 또는 실패 화면', () => {
+  const media = { videoUrl: 'blob:local-video', imageUrl: 'https://api/results/x.jpg' }
+
+  it('VALID는 결과 화면으로', () => {
+    expect(interpretResult(VALID, media)).toMatchObject({ type: 'result', result: { status: 'VALID' } })
+  })
+  it('실제 페널티킥: 속도 오차로 실패했지만 궤적이 충분해 부분 결과로 (속도·점수 보류, 보류 이유 포함)', () => {
+    const outcome = interpretResult(PENALTY_SPEED_HOLD, media)
+    expect(outcome.type).toBe('result')
+    if (outcome.type !== 'result') return
+    expect(outcome.result).toMatchObject({
+      status: 'PARTIAL',
+      speed_kmh: null,
+      score: null,
+      goal: 'UNDETERMINED',
+      hold_reason: 'SPEED_UNCERTAINTY_HIGH',
+      confidence: 0.94,
+    })
+    expect(outcome.result.trajectory).toHaveLength(14)
+  })
+  it('속도 보류라도 궤적이 너무 짧으면 실패 화면으로', () => {
+    const short = { ...PENALTY_SPEED_HOLD, trajectory: PENALTY_SPEED_HOLD.trajectory.slice(0, MIN_PARTIAL_POINTS - 1) }
+    expect(interpretResult(short, media)).toEqual({
+      type: 'failure',
+      reason: 'LOW_CONFIDENCE',
+      detail: 'SPEED_UNCERTAINTY_HIGH',
+    })
+  })
+  it('카메라 움직임처럼 궤적도 믿기 어려운 실패는 궤적이 있어도 실패 화면으로', () => {
+    const moving = { ...PENALTY_SPEED_HOLD, failure_reason: 'FIT_FAILED', failure_detail: 'CAMERA_MOVING' }
+    expect(interpretResult(moving, media)).toEqual({ type: 'failure', reason: 'FIT_FAILED', detail: 'CAMERA_MOVING' })
+  })
+  it('세부 코드가 없는 실패(예시 작업 sample-low-confidence)는 실패 화면으로', () => {
+    const { failure_detail: _d, ...noDetail } = PENALTY_SPEED_HOLD
+    expect(interpretResult(noDetail, media)).toEqual({ type: 'failure', reason: 'LOW_CONFIDENCE', detail: undefined })
   })
 })
 

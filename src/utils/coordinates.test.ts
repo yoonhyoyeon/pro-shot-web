@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { boxToSource, fitTransform, frameToTime, interpolateAt, minRadiusInSource, pointsToDraw, scalePoint, sourceToBox, timeToFrame } from './coordinates'
+import {
+  boxToSource,
+  fitTransform,
+  frameToTime,
+  interpolateAt,
+  minRadiusInSource,
+  nearestPoint,
+  pointsToDraw,
+  scalePoint,
+  sourceToBox,
+  timeToFrame,
+} from './coordinates'
 
 const FHD = { width: 1920, height: 1080 }
 const HD = { width: 1280, height: 720 }
@@ -106,5 +117,21 @@ describe('minRadiusInSource: 터치 영역 최소 크기', () => {
     // 1920px 영상을 384px 폭에 표시 → scale 0.2 → 22 / 0.2 = 110
     expect(minRadiusInSource(22, 0.2)).toBe(110)
     expect(minRadiusInSource(22, 0.2) * 0.2).toBe(22)
+  })
+})
+
+describe('nearestPoint: 누른 위치에서 가장 가까운 점', () => {
+  // 실제 페널티킥 궤적의 골대 근처 점 (화면에서 10px 안팎으로 붙어 있어 터치 영역이 겹침)
+  const near = [
+    { frame: 57, x: 526.7, y: 426.7 },
+    { frame: 58, x: 532.2, y: 412.7 },
+    { frame: 59, x: 539.5, y: 393.7 },
+  ]
+  it('겹친 터치 영역 중 어느 점이 눌렸든 실제로 가장 가까운 점을 고른다', () => {
+    expect(nearestPoint(near, { x: 527, y: 427 })?.frame).toBe(57)
+    expect(nearestPoint(near, { x: 533, y: 410 })?.frame).toBe(58)
+  })
+  it('점이 없으면 null', () => {
+    expect(nearestPoint([], { x: 0, y: 0 })).toBeNull()
   })
 })

@@ -4,9 +4,10 @@ import { Button } from '../components/common/Button'
 import { Card } from '../components/common/Card'
 import { StatusBadge } from '../components/common/StatusBadge'
 import { ConfidenceMeter } from '../components/result/ConfidenceMeter'
-import { FeedbackCard, GoalResult, ScoreCard, SpeedCard } from '../components/result/MetricCards'
+import { FeedbackCard, GoalResult, HoldReasonCard, ScoreCard, SpeedCard } from '../components/result/MetricCards'
 import { TrajectoryViewer } from '../components/result/TrajectoryViewer'
 import type { AnalysisResult } from '../types/analysis'
+import { scoreNote } from '../utils/scoreNote'
 
 interface ResultPageProps {
   result: AnalysisResult
@@ -15,16 +16,28 @@ interface ResultPageProps {
 }
 
 export function ResultPage({ result, onRestart, onGuideClick }: ResultPageProps) {
+  // 공은 추적했지만 속도를 계산하지 못한 부분 결과
+  const partial = result.status === 'PARTIAL'
   return (
     <div className="animate-fade-in">
       <section>
-        <StatusBadge tone="accent" dot>
-          ANALYSIS COMPLETE
-        </StatusBadge>
+        {partial ? (
+          <StatusBadge tone="warn" dot>
+            PARTIAL RESULT
+          </StatusBadge>
+        ) : (
+          <StatusBadge tone="accent" dot>
+            ANALYSIS COMPLETE
+          </StatusBadge>
+        )}
         <h1 className="font-display text-fg pt-2 text-[36px] leading-[44px] tracking-[1.1px] sm:text-[44px]">
           슈팅 분석 결과
         </h1>
-        <p className="text-fg-subtle pt-2 text-sm leading-5">AI가 추적한 공의 이동 경로와 추정 속도를 확인하세요.</p>
+        <p className="text-fg-subtle pt-2 text-sm leading-5">
+          {partial
+            ? '공의 궤적은 추적했지만 속도는 계산하지 못했어요. 속도를 보류한 이유를 확인하세요.'
+            : 'AI가 추적한 공의 이동 경로와 추정 속도를 확인하세요.'}
+        </p>
       </section>
 
       <div className="flex flex-wrap items-center justify-between gap-3 pt-7 pb-3">
@@ -46,8 +59,12 @@ export function ResultPage({ result, onRestart, onGuideClick }: ResultPageProps)
         {/* 모바일: 속도·점수를 나란히 두어 스크롤을 줄임 */}
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:flex lg:flex-col lg:pb-10">
           <SpeedCard speedKmh={result.speed_kmh} />
-          <ScoreCard score={result.score} />
-          <FeedbackCard feedback={result.feedback} />
+          <ScoreCard score={result.score} note={scoreNote(result.score, result.goal, result.speed_kmh)} />
+          {partial && result.hold_reason ? (
+            <HoldReasonCard reason={result.hold_reason} />
+          ) : (
+            <FeedbackCard feedback={result.feedback} />
+          )}
         </div>
       </div>
 

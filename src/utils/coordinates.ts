@@ -79,6 +79,23 @@ export function interpolateAt(points: TrajectoryPoint[], frame: number): Traject
 }
 
 /**
+ * 위치에서 가장 가까운 점. 점이 촘촘하면 터치 영역이 겹쳐 나중에 그린 점이 눌리므로,
+ * 누른 위치로 실제로 가장 가까운 점을 다시 고른다. 점이 없으면 null.
+ */
+export function nearestPoint<T extends { x: number; y: number }>(points: T[], pos: { x: number; y: number }): T | null {
+  let best: T | null = null
+  let bestDist = Infinity
+  for (const p of points) {
+    const d = (p.x - pos.x) ** 2 + (p.y - pos.y) ** 2
+    if (d < bestDist) {
+      bestDist = d
+      best = p
+    }
+  }
+  return best
+}
+
+/**
  * 화면에 그릴 추적 점. 재생 중에는 현재 프레임까지만 그려 공을 따라가게 하고,
  * 멈춘 상태에서는 전체를 유지해 점을 고른 뒤에도 다른 점을 고를 수 있게 한다.
  */

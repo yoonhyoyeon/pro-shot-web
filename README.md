@@ -14,7 +14,8 @@ npm test         # 단위 테스트 (파일 검증, 좌표 변환, 오류 코드
 
 백엔드 연결: `.env.example`을 `.env.local`로 복사한 뒤 `VITE_API_MODE=http`, `VITE_API_BASE_URL`을 설정합니다. 기본값은 Mock입니다.
 
-- 배포 서버: `https://soccer-shot-analyzer.onrender.com` (스웨거 `/docs`). 무료 플랜이라 첫 요청이 50초 이상 걸릴 수 있고, 아직 영상 분석은 503 `ANALYSIS_UNAVAILABLE`을 돌려줍니다.
+- 배포 서버: `https://jun-3s--soccer-shot-api-fastapi-app.us-east.modal.run` (스웨거 `/docs`, 2026-11-16 Modal로 이전, 분석 모델 포함). 이전 Render 무료 서버는 메모리 512MB를 넘어 분석을 돌릴 수 없습니다.
+- 서버는 작업을 메모리에만 두므로 서버가 내려가면(사용이 없을 때) 이전 분석 id는 404가 됩니다.
 - 서버 재시작 없이 Mock으로 보기: `http://localhost:5173/?api=mock`
 - 사용성 테스트용 주소: `?test=1` (Mock으로 동작하고 하단 PROTOTYPE 바를 숨김)
 - 업로드 없이 결과 화면 확인: `http://localhost:5173/?analysis=sample-valid` (예시 작업 id: `sample-valid`, `sample-portrait`, `sample-no-ball`, `sample-low-confidence`, `sample-track-short`)
@@ -23,6 +24,7 @@ npm test         # 단위 테스트 (파일 검증, 좌표 변환, 오류 코드
 
 화면 하단 PROTOTYPE 바로 업로드 / 영상 선택 / 분석 중 / 결과 / 분석 실패 / 네트워크 오류 화면을 바로 전환할 수 있습니다.
 `?scenario=ball-not-detected`, `goal-not-detected`, `network-error`를 붙이면 첫 분석이 해당 오류로 끝납니다(재시도는 성공).
+`?scenario=partial`(속도 보류 부분 결과), `?scenario=undetermined`(골인 판정 보류·점수 미평가)는 결과만 바뀝니다.
 
 ## 구조
 
@@ -53,13 +55,22 @@ src/
 - 실제 영상이 있으면 분석 해상도 → 영상 해상도로 좌표를 환산하고(`scalePoints`), 재생 시간과 프레임을 맞춰
   재생 중에는 현재 프레임까지의 궤적만 그리고, 멈추면 전체 궤적을 보여줍니다. 추적 점 사이는 보간해 공 위치를 따라갑니다.
 
-## 백엔드 API (프론트엔드가 기대하는 형태)
+## 백엔드 API (실제 서버 기준)
 
 | 요청 | 설명 |
 |---|---|
-| `POST /analyses` (multipart `video`) | 업로드 후 `{ "analysis_id": "..." }` |
-| `GET /analyses/{id}/events` (SSE) | `event: progress` `{progress, step}` / `event: complete` / `event: failed` `{code}` |
-| `GET /analyses/{id}/result` | `AnalysisResult` (src/types/analysis.ts) |
+| `POST /analyses` (multipart `file`, `calibration_id?`) | `202 { "id": "..." }` |
+| `GET /analyses/{id}/events` (SSE) | 이름 없는 `data: {"type": "progress" \| "keepalive" \| "complete" \| "failed", ...}` |
+| `GET /analyses/{id}/result` | `complete` 이벤트의 `data`와 같은 결과 |
+
+결과를 화면으로 바꾸는 규칙 (`src/api/serverMapping.ts`)
+
+- 골인: `goal_status` `GOAL` 골인 · `OUTSIDE` 노골 · `UNDETERMINED` 판정 보류 (`goal: false`만으로는 구분 불가)
+- 점수: `score_status`가 `NOT_EVALUATED`면 미평가 (서버는 0을 보냄)
+- 궤적: 공이 골대에 닿은 뒤 골망·바닥에서 움직인 점은 그리지 않음 (`src/utils/trajectory.ts`)
+- `ANALYSIS_FAILED`라도 `failure_detail`이 속도 계산 단계의 보류(예: `SPEED_UNCERTAINTY_HIGH`)이고 궤적 점이 5개 이상이면
+  실패 화면 대신 궤적을 보여 주고 속도·점수만 보류한 부분 결과(PARTIAL)로 표시
+- 그 밖의 실패는 `failure_detail`(없으면 `failure_reason`)에 맞는 안내로 실패 화면 표시 (`src/utils/failureCopy.ts`)
 
 ## 백엔드 연동 시
 

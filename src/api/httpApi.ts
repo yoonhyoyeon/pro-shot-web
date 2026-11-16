@@ -1,9 +1,9 @@
 import type { AnalysisErrorCode, AnalysisEvent } from '../types/analysis'
 import { codeFromBody, isUploadRejectCode, normalizeFailureCode } from './errorCodes'
 import {
+  interpretResult,
   parseServerEvent,
   stepFromProgress,
-  toAnalysisResult,
   toCalibrationStatus,
   type ServerCalibrationStatus,
 } from './serverMapping'
@@ -72,7 +72,7 @@ export function createHttpApi(baseUrl: string): AnalysisApi & CalibrationApi {
       if (!video.file) throw new ApiError('INVALID_VIDEO', '업로드할 파일이 없습니다')
       const form = new FormData()
       form.append('file', video.file)
-      // 백엔드는 아직 이 값을 분석에 쓰지 않는다 (연동 가이드 7장). 연결되면 그대로 적용됨
+      // 백엔드가 9주차에 보정값을 실제 분석에 연결했다. 화면 비율이 다르면 서버에서도 적용하지 않는다
       if (calibrationId) form.append('calibration_id', calibrationId)
       const analysisId = await upload('/analyses', form, options)
       if (video.kind === 'video') localVideos.set(analysisId, video.previewUrl)
@@ -141,18 +141,18 @@ export function createHttpApi(baseUrl: string): AnalysisApi & CalibrationApi {
 
           case 'complete': {
             const raw = event.data
-            // 공 미탐지·신뢰도 미달처럼 분석이 끝까지 돌고 실패한 경우도 complete로 온다
-            if (raw.status === 'ANALYSIS_FAILED') {
-              fail(normalizeFailureCode(raw.failure_reason), raw.failure_reason)
+            // 공 미탐지·속도 보류처럼 분석이 끝까지 돌고 실패한 경우도 complete로 온다.
+            // 속도만 보류되고 궤적이 충분하면 부분 결과로, 그 밖에는 실패 화면으로 보낸다
+            const outcome = interpretResult(raw, {
+              videoUrl: localVideos.get(analysisId) ?? url(`/analyses/${analysisId}/video`),
+              imageUrl: url(`/results/${encodeURIComponent(raw.trajectory_image)}`),
+            })
+            if (outcome.type === 'failure') {
+              // 화면 문구는 세부 코드(failure_detail)가 있으면 그것으로 고른다
+              fail(normalizeFailureCode(outcome.reason), outcome.detail ?? outcome.reason)
               break
             }
-            emit({
-              type: 'complete',
-              result: toAnalysisResult(raw, {
-                videoUrl: localVideos.get(analysisId) ?? url(`/analyses/${analysisId}/video`),
-                imageUrl: url(`/results/${encodeURIComponent(raw.trajectory_image)}`),
-              }),
-            })
+            emit({ type: 'complete', result: outcome.result })
             close()
             break
           }

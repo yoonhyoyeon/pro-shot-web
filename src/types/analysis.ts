@@ -19,14 +19,25 @@ export interface GoalArea {
   height: number
 }
 
-export type AnalysisStatus = 'VALID' | 'BALL_NOT_DETECTED'
+/**
+ * VALID: 속도까지 계산한 결과
+ * PARTIAL: 공은 추적했지만 속도를 계산하지 못해 속도·점수를 보류한 결과 (서버는 ANALYSIS_FAILED로 보냄)
+ */
+export type AnalysisStatus = 'VALID' | 'PARTIAL'
+
+/** 골인 추정. 영상만으로 골라인 통과를 확정할 수 없으면 판정 보류(UNDETERMINED) */
+export type GoalStatus = 'GOAL' | 'OUTSIDE' | 'UNDETERMINED'
 
 /** 화면에서 쓰는 분석 결과. HTTP 응답은 api/serverMapping.ts에서 이 형태로 바꾼다 */
 export interface AnalysisResult {
   status: AnalysisStatus
-  speed_kmh: number
-  score: number
-  goal: boolean
+  /** null: 속도 보류 */
+  speed_kmh: number | null
+  /** null: 미평가 (골인 미확정이거나 속도 보류). 골대 밖은 0점 */
+  score: number | null
+  goal: GoalStatus
+  /** 속도를 보류한 이유. 서버의 세부 실패 코드(failure_detail). PARTIAL일 때만 */
+  hold_reason?: string
   confidence: number
   frames_tracked: number
   feedback: string

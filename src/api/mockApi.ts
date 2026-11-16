@@ -1,9 +1,28 @@
-import { mockResult, startMockAnalysis, type MockScenario } from '../mocks/mockAnalysis'
+import {
+  mockPartialResult,
+  mockResult,
+  mockUndeterminedResult,
+  startMockAnalysis,
+  type MockScenario,
+} from '../mocks/mockAnalysis'
 import { MOCK_CALIBRATION_FAILURE, mockCalibrationResult, type MockCalibrationScenario } from '../mocks/mockCalibration'
 import type { AnalysisResult, SelectedVideo } from '../types/analysis'
 import type { AnalysisApi, CalibrationApi, UploadOptions } from './types'
 
-const SCENARIOS: MockScenario[] = ['success', 'ball-not-detected', 'goal-not-detected', 'network-error']
+const SCENARIOS: MockScenario[] = [
+  'success',
+  'partial',
+  'undetermined',
+  'ball-not-detected',
+  'goal-not-detected',
+  'network-error',
+]
+
+/** 결과만 바꾸는 시나리오 */
+const SCENARIO_RESULT: Partial<Record<MockScenario, AnalysisResult>> = {
+  partial: mockPartialResult,
+  undetermined: mockUndeterminedResult,
+}
 const CALIBRATION_SCENARIOS: MockCalibrationScenario[] = ['success', 'checkerboard-not-found', 'not-enough-frames']
 
 /** 보정 처리에 걸리는 시간 흉내 (ms) */
@@ -16,8 +35,9 @@ function fromUrl<T extends string>(key: string, values: T[], fallback: T): T {
 }
 
 /** Mock 결과에 사용자가 올린 영상을 붙여 실제 영상 위 궤적 표시를 확인할 수 있게 함 */
-function resultFor(video: SelectedVideo): AnalysisResult {
-  return video.kind === 'video' ? { ...mockResult, video_url: video.previewUrl } : mockResult
+function resultFor(video: SelectedVideo | undefined, scenario: MockScenario): AnalysisResult {
+  const result = SCENARIO_RESULT[scenario] ?? mockResult
+  return video?.kind === 'video' ? { ...result, video_url: video.previewUrl } : result
 }
 
 /** 파일 크기에 비례한 업로드 시간 흉내 (1.2~2.5초) */
@@ -63,11 +83,7 @@ export function createMockApi(): AnalysisApi & CalibrationApi {
       const scenario = nextScenario
       // 쿼리로 지정한 실패 시나리오는 첫 실행에만 적용해 재시도는 성공하도록 함
       nextScenario = 'success'
-      return startMockAnalysis({
-        scenario,
-        onEvent,
-        result: video ? resultFor(video) : mockResult,
-      })
+      return startMockAnalysis({ scenario, onEvent, result: resultFor(video, scenario) })
     },
 
     async createCalibration(video, options) {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
 import type { GoalArea, Size, TrajectoryPoint } from '../../types/analysis'
 import {
   boxToSource,
@@ -6,6 +6,7 @@ import {
   interpolateAt,
   fitTransform,
   minRadiusInSource,
+  nearestPoint,
   pointsToDraw,
   scaleArea,
   scalePoints,
@@ -135,6 +136,20 @@ export function TrajectoryViewer({
     }
   }
 
+  /**
+   * 점을 눌렀을 때. 실제 궤적은 골대 근처 점이 화면에서 10px 안팎으로 붙어 있어 44px 터치 영역이 겹치고,
+   * 나중에 그린 점이 위에 놓여 앞 점을 눌러도 뒤 점이 골라진다. 누른 위치에서 가장 가까운 점을 고른다.
+   * 키보드·보조기기로 실행된 클릭(detail 0)은 좌표가 없으므로 그 점을 그대로 쓴다.
+   */
+  const handlePointClick = (e: MouseEvent<SVGGElement>, p: TrajectoryPoint) => {
+    const rect = boxRef.current?.getBoundingClientRect()
+    const pos =
+      e.detail > 0 && rect
+        ? boxToSource({ x: e.clientX - rect.left, y: e.clientY - rect.top }, source, { width: rect.width, height: rect.height }, fit)
+        : null
+    selectPoint((pos && nearestPoint(visible, pos)) || p)
+  }
+
   const handlePointerMove = (e: PointerEvent<HTMLDivElement>) => {
     // 좌표 표시는 마우스에서만 (터치에서는 손가락이 화면을 가림)
     if (e.pointerType !== 'mouse') return
@@ -247,7 +262,7 @@ export function TrajectoryViewer({
                 tabIndex={0}
                 aria-label={`${frameToTime(p.frame, fps).toFixed(2)}초 지점의 공 위치`}
                 aria-pressed={isSelected}
-                onClick={() => selectPoint(p)}
+                onClick={(e) => handlePointClick(e, p)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
