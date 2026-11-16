@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Header } from './components/layout/Header'
-import { API_MODE, USABILITY_TEST } from './api'
+import { API_MODE } from './api'
 import { isFailureCode } from './api/errorCodes'
-import { ProtoNav } from './components/layout/ProtoNav'
 import { useAnalysis } from './hooks/useAnalysis'
-import { SAMPLE_FRAME, mockResult } from './mocks/mockAnalysis'
+import { SAMPLE_FRAME } from './mocks/mockAnalysis'
 import { AnalysisPage } from './pages/AnalysisPage'
 import { CalibrationPage } from './pages/CalibrationPage'
 import { AnalysisFailedPage, NetworkErrorPage } from './pages/ErrorPages'
@@ -15,7 +14,7 @@ import type { SelectedVideo, VideoMetadata } from './types/analysis'
 import type { CalibrationResult } from './types/calibration'
 import { calibrationIdFor, loadCalibration, saveCalibration } from './utils/calibration'
 
-export type Screen = 'upload' | 'selected' | 'analyzing' | 'result' | 'failed' | 'network-error' | 'guide' | 'calibration'
+type Screen = 'upload' | 'selected' | 'analyzing' | 'result' | 'failed' | 'network-error' | 'guide' | 'calibration'
 
 /** 분석 흐름 밖에서 따로 여는 화면 */
 type View = 'main' | 'guide' | 'calibration'
@@ -115,45 +114,11 @@ export default function App() {
     void start(v, { calibrationId: calibrationIdFor(calibration, v) })
   }
 
-  const navigate = (target: Screen) => {
-    setView(target === 'guide' || target === 'calibration' ? target : 'main')
-    switch (target) {
-      case 'upload':
-        goHome()
-        break
-      case 'selected':
-        set({ phase: 'idle' })
-        setVideo((v) => v ?? SAMPLE_VIDEO)
-        break
-      case 'analyzing': {
-        const v = video ?? SAMPLE_VIDEO
-        setVideo(v)
-        void start(v, { calibrationId: calibrationIdFor(calibration, v) })
-        break
-      }
-      case 'result':
-        set({ phase: 'done', result: mockResult })
-        break
-      case 'failed':
-        set({ phase: 'error', code: 'BALL_NOT_DETECTED' })
-        break
-      case 'network-error':
-        set({ phase: 'error', code: 'NETWORK_ERROR' })
-        break
-      case 'guide':
-        goGuide()
-        break
-      case 'calibration':
-        goCalibration()
-        break
-    }
-  }
-
   return (
     <div className="flex min-h-dvh flex-col">
       <Header onLogoClick={goHome} onGuideClick={goGuide} onCalibrationClick={goCalibration} />
 
-      <main className="mx-auto w-full max-w-[1240px] flex-1 px-4 pt-10 pb-32 sm:px-6">
+      <main className="mx-auto w-full max-w-[1240px] flex-1 px-4 pt-10 pb-16 sm:px-6">
         {screen === 'guide' && <GuidePage onStartUpload={backToUpload} />}
         {screen === 'calibration' && (
           <CalibrationPage
@@ -192,8 +157,6 @@ export default function App() {
             <NetworkErrorPage code={state.code} rawCode={state.rawCode} onRetry={retry} onBack={goHome} />
           ))}
       </main>
-
-      {!USABILITY_TEST && <ProtoNav current={screen} onNavigate={navigate} />}
     </div>
   )
 }
