@@ -1,4 +1,4 @@
-import type { AnalysisResult, AnalysisStepId, GoalStatus, Size, TrajectoryPoint } from '../types/analysis'
+import type { AnalysisResult, AnalysisStepId, GoalArea, GoalStatus, Size, TrajectoryPoint } from '../types/analysis'
 import type { CalibrationStatus } from '../types/calibration'
 import { trimAfterFlight } from '../utils/trajectory'
 
@@ -14,6 +14,10 @@ export interface ServerAnalysisResult {
   score: number
   /** 11/15 추가. 없으면(이전 서버) 채점한 것으로 본다 */
   score_status?: 'EVALUATED' | 'NOT_EVALUATED'
+  /** 11/16 추가. score의 만점. 측정하지 못한 항목이 빠지면 100보다 작아진다. 없으면 100 */
+  score_max?: number
+  /** 11/16 추가. 일부 근거로만 채점했는지 */
+  score_partial?: boolean
   speed_kmh: number
   /** 골대 밖 통과와 판정 불가가 모두 false로 오므로 goal_status로 구분한다 */
   goal: boolean
@@ -30,6 +34,17 @@ export interface ServerAnalysisResult {
   failure_reason?: string
   /** 분석 쪽 원래 실패 사유 (예: SPEED_UNCERTAINTY_HIGH). failure_reason보다 구체적이다 (9주차 추가) */
   failure_detail?: string
+  /** 11/16 추가. 골대 사각형(왼쪽 위·오른쪽 아래). 궤적과 같은 원본 좌표계. 골대를 못 찾으면 null */
+  goal_area?: { x1: number; y1: number; x2: number; y2: number } | null
+}
+
+/** 서버의 골대 사각형(두 꼭짓점) → 화면 형식(위치·크기). 없거나 크기가 0 이하면 그리지 않는다 */
+export function toGoalArea(area: ServerAnalysisResult['goal_area']): GoalArea | undefined {
+  if (!area) return undefined
+  const width = area.x2 - area.x1
+  const height = area.y2 - area.y1
+  if (!(width > 0 && height > 0)) return undefined
+  return { x: area.x1, y: area.y1, width, height }
 }
 
 /**
@@ -98,9 +113,10 @@ export interface ResultMedia {
 /**
  * 성공한 분석 결과 → 화면 결과.
  * - 골인: goal_status로 골인·골대 밖·판정 보류를 구분 (없으면 goal 값으로, false는 판정 보류로 본다)
- * - 점수: 미평가면 null (서버는 0을 보냄)
+ * - 점수: 미평가면 null (서버는 0을 보냄). 만점(score_max)과 일부 채점 여부를 함께 옮긴다
  * - 궤적: 공이 골대에 닿은 뒤 골망·바닥에서 움직인 점은 뺀다 (trimAfterFlight)
- * 백엔드에 없는 값(예측 궤적, 골대 영역)은 비워 두고, comment를 피드백 문구로 쓴다.
+ * - 골대 영역: 두 꼭짓점 → 위치·크기
+ * 백엔드에 없는 값(예측 궤적)은 비워 두고, comment를 피드백 문구로 쓴다.
  */
 export function toAnalysisResult(raw: ServerAnalysisResult, media: ResultMedia): AnalysisResult {
   const trajectory = trimAfterFlight(raw.trajectory)
@@ -108,7 +124,10 @@ export function toAnalysisResult(raw: ServerAnalysisResult, media: ResultMedia):
     status: 'VALID',
     speed_kmh: raw.speed_kmh,
     score: raw.score_status === 'NOT_EVALUATED' ? null : raw.score,
+    score_max: raw.score_max ?? 100,
+    score_partial: raw.score_partial ?? false,
     goal: raw.goal_status ?? (raw.goal ? 'GOAL' : 'UNDETERMINED'),
+    goal_area: toGoalArea(raw.goal_area),
     confidence: raw.confidence,
     frames_tracked: trajectory.length,
     feedback: raw.comment,
@@ -130,6 +149,7 @@ export type ResultOutcome =
 /**
  * 완료된 분석(complete 이벤트) → 결과 화면 또는 실패 화면.
  * 속도 계산 단계에서만 보류된 실패는 궤적이 충분하면 부분 결과(PARTIAL)로 보여 준다.
+ * 이때도 속도 없이 매긴 참고 점수(예: 60점 만점에 34점)가 오면 그대로 보여 준다.
  */
 export function interpretResult(raw: ServerAnalysisResult, media: ResultMedia): ResultOutcome {
   if (raw.status === 'VALID') return { type: 'result', result: toAnalysisResult(raw, media) }
@@ -140,7 +160,7 @@ export function interpretResult(raw: ServerAnalysisResult, media: ResultMedia): 
     if (result.trajectory.length >= MIN_PARTIAL_POINTS) {
       return {
         type: 'result',
-        result: { ...result, status: 'PARTIAL', speed_kmh: null, score: null, hold_reason: detail },
+        result: { ...result, status: 'PARTIAL', speed_kmh: null, hold_reason: detail },
       }
     }
   }

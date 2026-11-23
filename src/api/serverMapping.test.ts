@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PENALTY_SPEED_HOLD } from '../mocks/realAnalysis'
+import { PENALTY_SPEED_HOLD, PENALTY_VALID } from '../mocks/realAnalysis'
 import {
   MIN_PARTIAL_POINTS,
   interpretResult,
@@ -7,6 +7,7 @@ import {
   stepFromProgress,
   toAnalysisResult,
   toCalibrationStatus,
+  toGoalArea,
   type ServerAnalysisResult,
   type ServerCalibrationStatus,
 } from './serverMapping'
@@ -101,6 +102,20 @@ describe('toAnalysisResult: 백엔드 결과 → 화면 결과', () => {
     expect(toAnalysisResult({ ...old, goal: false }, media)).toMatchObject({ goal: 'UNDETERMINED', score: 78 })
     expect(toAnalysisResult(old, media).goal).toBe('GOAL')
   })
+  it('실제 페널티킥(11/23): 영상 참고 점수 56/100, 골인 판정 보류, 골대 영역을 위치·크기로', () => {
+    expect(toAnalysisResult(PENALTY_VALID, media)).toMatchObject({
+      status: 'VALID',
+      speed_kmh: 71.6,
+      score: 56,
+      score_max: 100,
+      score_partial: false,
+      goal: 'UNDETERMINED',
+      goal_area: { x: 348, y: 308, width: 479, height: 143 },
+    })
+  })
+  it('만점·일부 채점 값이 없는 이전 서버는 100점 만점, 전체 채점으로 본다', () => {
+    expect(toAnalysisResult(VALID, media)).toMatchObject({ score_max: 100, score_partial: false })
+  })
   it('골망에 닿은 뒤의 점은 빼고, 추적 프레임 수도 그린 점 개수로', () => {
     const real = toAnalysisResult(PENALTY_SPEED_HOLD, media)
     expect(real.trajectory).toHaveLength(14)
@@ -128,6 +143,17 @@ describe('interpretResult: 완료된 분석 → 결과 화면 또는 실패 화�
     })
     expect(outcome.result.trajectory).toHaveLength(14)
   })
+  it('부분 결과라도 속도 없이 매긴 참고 점수(60점 만점에 34점)가 오면 지우지 않는다', () => {
+    const referenceOnly = { ...PENALTY_SPEED_HOLD, score: 34, score_status: 'EVALUATED' as const, score_max: 60, score_partial: true }
+    const outcome = interpretResult(referenceOnly, media)
+    expect(outcome.type === 'result' && outcome.result).toMatchObject({
+      status: 'PARTIAL',
+      speed_kmh: null,
+      score: 34,
+      score_max: 60,
+      score_partial: true,
+    })
+  })
   it('속도 보류라도 궤적이 너무 짧으면 실패 화면으로', () => {
     const short = { ...PENALTY_SPEED_HOLD, trajectory: PENALTY_SPEED_HOLD.trajectory.slice(0, MIN_PARTIAL_POINTS - 1) }
     expect(interpretResult(short, media)).toEqual({
@@ -143,6 +169,17 @@ describe('interpretResult: 완료된 분석 → 결과 화면 또는 실패 화�
   it('세부 코드가 없는 실패(예시 작업 sample-low-confidence)는 실패 화면으로', () => {
     const { failure_detail: _d, ...noDetail } = PENALTY_SPEED_HOLD
     expect(interpretResult(noDetail, media)).toEqual({ type: 'failure', reason: 'LOW_CONFIDENCE', detail: undefined })
+  })
+})
+
+describe('toGoalArea: 골대 사각형 두 꼭짓점 → 위치·크기', () => {
+  it('왼쪽 위·오른쪽 아래 → x, y, 너비, 높이', () => {
+    expect(toGoalArea({ x1: 348, y1: 308, x2: 827, y2: 451 })).toEqual({ x: 348, y: 308, width: 479, height: 143 })
+  })
+  it('골대를 못 찾았거나(null) 크기가 0 이하면 그리지 않는다', () => {
+    expect(toGoalArea(null)).toBeUndefined()
+    expect(toGoalArea(undefined)).toBeUndefined()
+    expect(toGoalArea({ x1: 400, y1: 300, x2: 400, y2: 450 })).toBeUndefined()
   })
 })
 

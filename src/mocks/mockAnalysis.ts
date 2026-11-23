@@ -65,6 +65,8 @@ export const mockResult: AnalysisResult = {
   status: 'VALID',
   speed_kmh: 93.7,
   score: 78,
+  score_max: 100,
+  score_partial: false,
   goal: 'GOAL',
   confidence: 0.82,
   frames_tracked: 34,
@@ -77,19 +79,25 @@ export const mockResult: AnalysisResult = {
   goal_area: { x: 606.5, y: 264.1, width: 160.6, height: 113.8 },
 }
 
-/** 골인을 확정하지 못해 점수가 미평가인 결과 (실제 서버에서 가장 흔한 경우) */
+/**
+ * 골인을 확정하지 못해 영상 참고 점수(속도 + 화면상 골대 진입 위치)로 채점한 결과.
+ * 실제 서버에서 가장 흔한 경우 (11/23 실제 페널티킥 영상과 같은 형태)
+ */
 export const mockUndeterminedResult: AnalysisResult = {
   ...mockResult,
-  score: null,
+  score: 56,
   goal: 'UNDETERMINED',
-  feedback: '골라인 통과 여부를 판단할 근거가 부족합니다.',
+  feedback: '골라인 통과 여부를 판단할 근거가 부족합니다. 영상 참고 점수는 100점 만점에 56.9점입니다.',
 }
 
-/** 공은 추적했지만 속도를 보류한 부분 결과 (11/16 실제 페널티킥 영상과 같은 경우) */
+/** 공은 추적했지만 속도를 보류해, 골대 진입 위치만으로 60점 만점에 채점한 부분 결과 (백엔드 커밋 메시지의 사례) */
 export const mockPartialResult: AnalysisResult = {
   ...mockUndeterminedResult,
   status: 'PARTIAL',
   speed_kmh: null,
+  score: 34,
+  score_max: 60,
+  score_partial: true,
   predicted_trajectory: [],
   hold_reason: 'SPEED_UNCERTAINTY_HIGH',
 }

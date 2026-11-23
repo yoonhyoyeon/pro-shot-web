@@ -342,6 +342,12 @@ export function TrajectoryViewer({
             <span className="text-fg-muted text-xs leading-4">예측 궤적</span>
           </span>
         )}
+        {area && (
+          <span className="flex items-center gap-2">
+            <span aria-hidden className="border-track/50 h-2.5 w-4 rounded-[2px] border" />
+            <span className="text-fg-muted text-xs leading-4">골대 영역</span>
+          </span>
+        )}
         {/* 선택 정보는 영상 크기와 상관없이 읽히도록 영상 밖에 표시. 문구가 바뀌어도 아래 내용이 밀리지 않게 모바일은 두 줄 높이를 확보 */}
         <span
           aria-live="polite"

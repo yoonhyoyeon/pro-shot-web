@@ -6,8 +6,10 @@ import { StatusBadge } from '../components/common/StatusBadge'
 import { ConfidenceMeter } from '../components/result/ConfidenceMeter'
 import { FeedbackCard, GoalResult, HoldReasonCard, ScoreCard, SpeedCard } from '../components/result/MetricCards'
 import { TrajectoryViewer } from '../components/result/TrajectoryViewer'
+import { RetakePrompt } from '../components/result/RetakePrompt'
 import type { AnalysisResult } from '../types/analysis'
-import { scoreNote } from '../utils/scoreNote'
+import { retakeAdvice } from '../utils/retake'
+import { scoreLabel, scoreNote } from '../utils/scoreNote'
 
 interface ResultPageProps {
   result: AnalysisResult
@@ -18,6 +20,8 @@ interface ResultPageProps {
 export function ResultPage({ result, onRestart, onGuideClick }: ResultPageProps) {
   // 공은 추적했지만 속도를 계산하지 못한 부분 결과
   const partial = result.status === 'PARTIAL'
+  // 촬영 때문에 결과 일부가 보류됐으면 다시 촬영을 권한다
+  const advice = retakeAdvice(result)
   return (
     <div className="animate-fade-in">
       <section>
@@ -40,6 +44,8 @@ export function ResultPage({ result, onRestart, onGuideClick }: ResultPageProps)
         </p>
       </section>
 
+      {advice && <RetakePrompt advice={advice} onRetake={onRestart} onGuideClick={onGuideClick} />}
+
       <div className="flex flex-wrap items-center justify-between gap-3 pt-7 pb-3">
         <GoalResult goal={result.goal} />
         <ConfidenceMeter confidence={result.confidence} />
@@ -59,7 +65,13 @@ export function ResultPage({ result, onRestart, onGuideClick }: ResultPageProps)
         {/* 모바일: 속도·점수를 나란히 두어 스크롤을 줄임 */}
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:flex lg:flex-col lg:pb-10">
           <SpeedCard speedKmh={result.speed_kmh} />
-          <ScoreCard score={result.score} note={scoreNote(result.score, result.goal, result.speed_kmh)} />
+          <ScoreCard
+            score={result.score}
+            max={result.score_max}
+            partial={result.score_partial}
+            label={scoreLabel(result.goal)}
+            note={scoreNote(result)}
+          />
           {partial && result.hold_reason ? (
             <HoldReasonCard reason={result.hold_reason} />
           ) : (
@@ -83,7 +95,7 @@ export function ResultPage({ result, onRestart, onGuideClick }: ResultPageProps)
 
       <div className="flex flex-wrap gap-3 pt-7">
         <Button onClick={onRestart}>
-          다른 영상 분석하기
+          {advice ? '다시 촬영하기' : '다른 영상 분석하기'}
           <img src={arrowIcon} alt="" width={14} height={14} />
         </Button>
         <Button variant="secondary" onClick={onGuideClick}>

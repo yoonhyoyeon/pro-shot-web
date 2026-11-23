@@ -33,8 +33,12 @@ export interface AnalysisResult {
   status: AnalysisStatus
   /** null: 속도 보류 */
   speed_kmh: number | null
-  /** null: 미평가 (골인 미확정이거나 속도 보류). 골대 밖은 0점 */
+  /** null: 미평가. 골대 밖은 0점 */
   score: number | null
+  /** 점수의 만점. 측정하지 못한 항목은 채점에서 빠져 100보다 작아진다 (예: 속도 없이 60점 만점) */
+  score_max: number
+  /** 일부 근거로만 채점했는지 */
+  score_partial: boolean
   goal: GoalStatus
   /** 속도를 보류한 이유. 서버의 세부 실패 코드(failure_detail). PARTIAL일 때만 */
   hold_reason?: string

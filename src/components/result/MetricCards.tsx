@@ -1,6 +1,7 @@
 import infoIcon from '../../assets/icons/info.svg'
 import type { GoalStatus } from '../../types/analysis'
 import { FAILURE_DETAIL_COPY, SPEED_HOLD_FALLBACK } from '../../utils/failureCopy'
+import { formatScoreMax } from '../../utils/scoreNote'
 import { Card, Eyebrow } from '../common/Card'
 import { StatusBadge } from '../common/StatusBadge'
 
@@ -84,12 +85,27 @@ export function GoalResult({ goal }: { goal: GoalStatus }) {
   )
 }
 
-/** score가 null이면 미평가. note: utils/scoreNote */
-export function ScoreCard({ score, note }: { score: number | null; note: string }) {
-  const clamped = score === null ? 0 : Math.max(0, Math.min(100, score))
+interface ScoreCardProps {
+  /** null이면 미평가 */
+  score: number | null
+  /** 만점. 측정하지 못한 항목이 빠지면 100보다 작다 */
+  max: number
+  /** 일부 근거로만 채점했는지 */
+  partial: boolean
+  /** 점수 이름 · 설명 (utils/scoreNote) */
+  label: string
+  note: string
+}
+
+export function ScoreCard({ score, max, partial, label, note }: ScoreCardProps) {
+  const clamped = score === null || max <= 0 ? 0 : Math.max(0, Math.min(max, score))
+  const percent = max > 0 ? (clamped / max) * 100 : 0
   return (
     <Card className="p-5">
-      <Eyebrow>슈팅 점수</Eyebrow>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Eyebrow>{label}</Eyebrow>
+        {score !== null && partial && <StatusBadge>PARTIAL</StatusBadge>}
+      </div>
       {score === null ? (
         <p className="pt-3">
           <HeldValue>미평가</HeldValue>
@@ -99,18 +115,18 @@ export function ScoreCard({ score, note }: { score: number | null; note: string 
           <span className="font-display text-fg text-[44px] leading-[44px] tabular-nums sm:text-[60px] sm:leading-[60px]">
             {score}
           </span>
-          <span className="text-fg-muted pb-1.5 text-lg leading-7 font-medium">/ 100</span>
+          <span className="text-fg-muted pb-1.5 text-lg leading-7 font-medium">/ {formatScoreMax(max)}</span>
         </p>
       )}
       <div
         {...(score === null
           ? { 'aria-hidden': true }
-          : { role: 'meter', 'aria-label': '슈팅 점수', 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': clamped })}
+          : { role: 'meter', 'aria-label': label, 'aria-valuemin': 0, 'aria-valuemax': max, 'aria-valuenow': clamped })}
         className="mt-3 h-1 overflow-hidden rounded-full bg-white/8"
       >
         <div
           className="from-accent to-track h-full origin-left rounded-full bg-gradient-to-r transition-[width] duration-700"
-          style={{ width: `${clamped}%` }}
+          style={{ width: `${percent}%` }}
         />
       </div>
       <p className="text-fg-subtle pt-2 text-xs leading-4 break-keep">{note}</p>
@@ -118,7 +134,7 @@ export function ScoreCard({ score, note }: { score: number | null; note: string 
   )
 }
 
-/** 부분 결과에서 속도를 보류한 이유와 다시 촬영할 때의 방법 (피드백 카드 자리에 표시) */
+/** 부분 결과에서 속도를 보류한 이유 (피드백 카드 자리에 표시). 다시 촬영하는 방법은 결과 위 RetakePrompt에 */
 export function HoldReasonCard({ reason }: { reason: string }) {
   const copy = FAILURE_DETAIL_COPY[reason] ?? SPEED_HOLD_FALLBACK
   return (
@@ -126,8 +142,6 @@ export function HoldReasonCard({ reason }: { reason: string }) {
       <Eyebrow>속도를 보류한 이유</Eyebrow>
       <p className="text-fg pt-3 text-sm leading-5 font-medium">{copy.title}</p>
       <p className="text-fg-muted pt-1 text-sm leading-[22.75px]">{copy.description}</p>
-      <p className="text-warn pt-4 text-xs leading-4 font-medium">다시 촬영할 때</p>
-      <p className="text-fg-muted pt-1 text-sm leading-[22.75px]">{copy.solution}</p>
       <p className="text-fg-faint pt-3 font-mono text-[10px] leading-[15px] tracking-[1px]">{reason}</p>
     </Card>
   )

@@ -99,3 +99,28 @@ export const PENALTY_SPEED_HOLD: ServerAnalysisResult = {
   failure_reason: 'LOW_CONFIDENCE',
   failure_detail: 'SPEED_UNCERTAINTY_HIGH',
 }
+
+/**
+ * 같은 영상을 2026-11-23에 다시 분석한 응답. 데이터 파트가 고친 속도 추정이 반영되어 VALID로 왔다.
+ * 골라인 판정은 보류지만, 속도와 화면상 골대 진입 위치로 낸 '영상 참고 점수'(56/100)가 함께 온다.
+ * 궤적은 11/16 응답과 같다.
+ */
+export const PENALTY_VALID: ServerAnalysisResult = {
+  status: 'VALID',
+  score: 56,
+  score_status: 'EVALUATED',
+  score_max: 100,
+  score_partial: false,
+  speed_kmh: 71.6,
+  goal: false,
+  goal_status: 'UNDETERMINED',
+  trajectory: PENALTY_SPEED_HOLD.trajectory,
+  fps: 24,
+  frame_size: { width: 1280, height: 720 },
+  confidence: 0.94,
+  processing_time_sec: 22.5,
+  trajectory_image: '20261123_085513_KakaoTalk_Video_2026-11-16-15-44-29-1_result.jpg',
+  comment:
+    '골라인 통과 여부를 판단할 근거가 부족합니다. 초기 비행 속도는 약 71.6 km/h입니다. 촬영 조건 가정에 따른 속도 추정값입니다. 영상 참고 점수는 100점 만점에 56.9점입니다.',
+  goal_area: { x1: 348, y1: 308, x2: 827, y2: 451 },
+}
